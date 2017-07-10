@@ -37,6 +37,7 @@ const controller = Botkit.slackbot({
 });
 
 const FIVE_SECONDS = 5000;
+const THREE_SECONDS = 3000;
 
 var bot = controller.spawn({
     token: slackBotKey
@@ -151,13 +152,17 @@ function reply(bot, message, response) {
     handlerFunction(session, message, response);
 }
 
+const SAY_COMPANY_INTENT = 'say-company';
+const ESTIMATE_BILL_INTENT = 'estimate-bill';
+
 const RESPONSE_HANDLERS = {
-    'say-company': sayCompanyIntentResponseHandler
+    [SAY_COMPANY_INTENT]: sayCompanyIntentResponseHandler,
+    [ESTIMATE_BILL_INTENT]: estimateBillResponseHandler
 }
 
 function sayCompanyIntentResponseHandler(session, message, response) {
     if (session.hasSharedCompanies) {
-        console.info('session has already handled say company intent');
+        console.info(`(${SAY_COMPANY_INTENT}): session has already handled this intent`);
         return;
     }
 
@@ -174,16 +179,39 @@ function sayCompanyIntentResponseHandler(session, message, response) {
         const newNumberOfCompanies = session.companies.size;
 
         if (originalNumberOfCompanies === newNumberOfCompanies) {
-            bot.reply(message, responseText, (err, resp) => {
-                if (err) {
-                    console.error(err);
-                }
-            });
-
+            doReply(message, responseText);
         }
 
     }, FIVE_SECONDS);
 
+}
+
+function estimateBillResponseHandler(session, message, response) {
+    if (!session.hasSharedCompanies) {
+        console.info(`(${ESTIMATE_BILL_INTENT}): session needs to answer which companies they pay before estimating price`);
+        return;
+    }
+
+    if (session.hasEstimatedBill) {
+        console.info(`(${ESTIMATE_BILL_INTENT}): session has already handled this intent`);
+        return;
+    }
+
+    session.hasEstimatedBill = true;
+
+    const responseText = response.result.fulfillment.speech;
+
+    setTimeout(function () {
+        doReply(message, responseText);
+    }, THREE_SECONDS);
+}
+
+function doReply(message, responseText) {
+    bot.reply(message, responseText, (err, resp) => {
+        if (err) {
+            console.error(err);
+        }
+    });
 }
 
 //Create a server to prevent Heroku kills the bot
