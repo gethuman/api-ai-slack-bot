@@ -16,6 +16,13 @@ const http = require('http');
 const Entities = require('html-entities').XmlEntities;
 const decoder = new Entities();
 
+var rp = require('request-promise-native');
+const SLACK_OAUTH = {
+    CLIENT_ID: process.env.SLACK_OAUTH_CLIENT_ID,
+    ACCESS_TOKEN: process.env.SLACK_OAUTH_ACCESS_TOKEN
+};
+const GETHUMAN_REPS_USER_GROUP = 'S5ZQGD388';
+
 const apiAiAccessToken = process.env.accesstoken;
 const slackBotKey = process.env.slackkey;
 
@@ -202,8 +209,60 @@ function estimateBillResponseHandler(session, message, response) {
     const responseText = response.result.fulfillment.speech;
 
     setTimeout(function () {
+        inviteGetHumanRepsToRoom(message);
         doReply(message, responseText);
     }, THREE_SECONDS);
+}
+
+function inviteGetHumanRepsToRoom(message) {
+    inviteUserGroupToChannel(GETHUMAN_REPS_USER_GROUP, message.channel);
+}
+
+function inviteUserGroupToChannel(groupId, channelId) {
+    return getSlackUserIdsForUserGroup(groupId).then((userIds) => {
+        return inviteUserIdsToChannel(userIds, channelId);
+    });
+}
+
+function getSlackUserIdsForUserGroup(groupId) {
+    return rp.post({
+        url: 'https://slack.com/api/usergroups.users.list',
+        formData: {
+            token: SLACK_OAUTH.ACCESS_TOKEN,
+            usergroup: groupId
+        },
+        json: true
+    }).then((parsedBody) => {
+        return parsedBody.users;
+    });
+}
+
+function inviteUserIdsToChannel(userIds, channelId) {
+    let inviteUsersToChannelRequests = [];
+
+    userIds.forEach((userId) => {
+        inviteUsersToChannelRequests.push(inviteSlackUserIdToChannel(userId, channelId));
+    });
+
+    return Promise.all(inviteUsersToChannelRequests);
+}
+
+function inviteSlackUserIdToChannel(userId, channelId) {
+    console.log(`inviting user ${userId} to channel ${channelId}`);
+
+    return rp.post({
+        url: 'https://slack.com/api/channels.invite',
+        formData: {
+            token: SLACK_OAUTH.ACCESS_TOKEN,
+            channel: channelId,
+            user: userId
+        },
+        json: true
+    }).then((parsedBody) => {
+        return parsedBody.ok;
+    });
+
+
 }
 
 function doReply(message, responseText) {
