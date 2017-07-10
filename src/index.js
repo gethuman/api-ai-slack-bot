@@ -124,15 +124,7 @@ controller.hears(['.*'], ['direct_message', 'direct_mention', 'mention', 'ambien
             console.log(response);
 
             if (isDefined(response.result)) {
-                
-                const responseData = response.result.fulfillment.data;
-                const responseText = response.result.fulfillment.speech;
-
-                if (isDefined(responseData) && isDefined(responseData.slack)) {
-                    replyWithData(bot, message, responseData);
-                } else if (isDefined(responseText)) {
-                    replyWithText(bot, message, response);
-                }
+                reply(bot, message, response);
 
             }
         });
@@ -144,49 +136,54 @@ controller.hears(['.*'], ['direct_message', 'direct_mention', 'mention', 'ambien
     }
 });
 
-function replyWithText(bot, message, response) {
-    const responseText = response.result.fulfillment.speech;
+function reply(bot, message, response) {
     const intent = getIntentFromResponse(response);
     const session = sessions.get(message.channel);
 
-    if (intent === 'say-company' && !session.hasSharedCompanies) {
-
-        const companies = response.result.parameters.company.map((companyName) => {
-            session.companies.add({ name: companyName });
-        });
-
-        const originalNumberOfCompanies = session.companies.size;
-
-        session.hasSharedCompanies = true;
-
-        setTimeout(function () {
-
-            const newNumberOfCompanies = session.companies.size;
-
-            if (originalNumberOfCompanies === newNumberOfCompanies) {
-                bot.reply(message, responseText, (err, resp) => {
-                    if (err) {
-                        console.error(err);
-                    }
-                });
-
-            }
-
-        }, FIVE_SECONDS);
-
+    const handlerFunction = RESPONSE_HANDLERS[intent];
+    if (!handlerFunction) {
+        console.info(`(intent=${intent}): no handler found for intent. ignoring message and not responding`);
+        return;
     }
 
+    bot.startTyping(message);
 
+    handlerFunction(session, message, response);
 }
 
-function replyWithData(bot, message, responseData) {
-    console.info('reply with data');
+const RESPONSE_HANDLERS = {
+    'say-company': sayCompanyIntentResponseHandler
+}
 
-    try {
-        bot.reply(message, responseData.slack);
-    } catch (err) {
-        bot.reply(message, err.message);
+function sayCompanyIntentResponseHandler(session, message, response) {
+    if (session.hasSharedCompanies) {
+        console.info('session has already handled say company intent');
+        return;
     }
+
+    session.hasSharedCompanies = true;
+
+    const responseText = response.result.fulfillment.speech;
+    const companies = response.result.parameters.company.map((companyName) => {
+        session.companies.add({ name: companyName });
+    });
+    const originalNumberOfCompanies = session.companies.size;
+
+    setTimeout(function () {
+
+        const newNumberOfCompanies = session.companies.size;
+
+        if (originalNumberOfCompanies === newNumberOfCompanies) {
+            bot.reply(message, responseText, (err, resp) => {
+                if (err) {
+                    console.error(err);
+                }
+            });
+
+        }
+
+    }, FIVE_SECONDS);
+
 }
 
 //Create a server to prevent Heroku kills the bot
