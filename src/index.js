@@ -187,6 +187,11 @@ function sayCompanyIntentResponseHandler(session, message, response) {
 }
 
 function estimateBillResponseHandler(session, message, response) {
+    if (!session.hasSharedCompanies) {
+        console.info(`(${ESTIMATE_BILL_INTENT}): session needs to answer which companies they pay before estimating price`);
+        return;
+    }
+
     if (session.hasEstimatedBill) {
         console.info(`(${ESTIMATE_BILL_INTENT}): session has already handled this intent`);
         return;
