@@ -156,8 +156,8 @@ const SAY_COMPANY_INTENT = 'say-company';
 const ESTIMATE_BILL_INTENT = 'estimate-bill';
 
 const RESPONSE_HANDLERS = {
-    SAY_COMPANY_INTENT: sayCompanyIntentResponseHandler,
-    ESTIMATE_BILL_INTENT: estimateBillResponseHandler
+    [SAY_COMPANY_INTENT]: sayCompanyIntentResponseHandler,
+    [ESTIMATE_BILL_INTENT]: estimateBillResponseHandler
 }
 
 function sayCompanyIntentResponseHandler(session, message, response) {
