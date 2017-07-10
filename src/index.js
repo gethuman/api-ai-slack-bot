@@ -29,12 +29,14 @@ if (devConfig) {
 
 const apiAiService = apiai(apiAiAccessToken, apiaiOptions);
 
-const sessionIds = new Map();
+const sessions = new Map();
 
 const controller = Botkit.slackbot({
     debug: false
     //include "log: false" to disable logging
 });
+
+const FIVE_SECONDS = 5000;
 
 var bot = controller.spawn({
     token: slackBotKey
@@ -58,6 +60,14 @@ function messageIsFromThisBot(message) {
 
 function messageIsDirectMention(message) {
     return message.text.indexOf("<@U") == 0 && message.text.indexOf(bot.identity.id) == -1;
+}
+
+function getIntentFromResponse(response) {
+    return response && response.result && response.result.metadata && response.result.metadata.intentName;
+}
+
+function getResolvedQueryFromResponse(response) {
+    return response && response.result && response.result.resolvedQuery;
 }
 
 controller.hears(['.*'], ['direct_message', 'direct_mention', 'mention', 'ambient', 'bot_message'], (bot, message) => {
@@ -90,13 +100,15 @@ controller.hears(['.*'], ['direct_message', 'direct_mention', 'mention', 'ambien
             requestText = requestText.replace(botId, '');
         }
 
-        if (!sessionIds.has(channel)) {
-            sessionIds.set(channel, uuid.v1());
+        if (!sessions.has(channel)) {
+            sessions.set(channel, { uuid: uuid.v1(), companies: new Set() });
         }
+
+        const session = sessions.get(channel);
 
         let request = apiAiService.textRequest(requestText,
             {
-                sessionId: sessionIds.get(channel),
+                sessionId: session.uuid,
                 contexts: [
                     {
                         name: "generic",
@@ -109,41 +121,20 @@ controller.hears(['.*'], ['direct_message', 'direct_mention', 'mention', 'ambien
             });
 
         request.on('response', (response) => {
-            console.log(`(response=${JSON.stringify(response)}: received API.AI response`);
+            console.log(response);
 
-            if (!isDefined(response.result)) {
-                console.error('response result was not defined');
-                return;
-            }
+            if (isDefined(response.result)) {
+                
+                const responseData = response.result.fulfillment.data;
+                const responseText = response.result.fulfillment.speech;
 
-            let responseText = response.result.fulfillment.speech;
-            let responseData = response.result.fulfillment.data;
-            let action = response.result.action;
-
-            if ((!isDefined(responseData) || !isDefined(responseData.slack))) {
-
-                if (!isDefined(responseText)) {
-                    console.error(`(${JSON.stringify(response)}): response had no response text`);
-                    return;
+                if (isDefined(responseData) && isDefined(responseData.slack)) {
+                    replyWithData(bot, message, responseData);
+                } else if (isDefined(responseText)) {
+                    replyWithText(bot, message, response);
                 }
 
-                bot.reply(message, responseText, (err, resp) => {
-                    if (err) {
-                        console.error(`(response=${JSON.stringify(response)}): response had no data and slack data but had response text ${responseText}`, err);
-                    }
-                });
-
-                return;
             }
-
-            try {
-                bot.reply(message, responseData.slack);
-                console.log(`(${responseData.slack}): bot replied with message`);
-            } catch (err) {
-                bot.reply(message, err.message);
-                console.error(`(${err.message}): bot replied with error`, err);
-            }
-
         });
 
         request.on('error', (error) => console.error(error));
@@ -153,6 +144,50 @@ controller.hears(['.*'], ['direct_message', 'direct_mention', 'mention', 'ambien
     }
 });
 
+function replyWithText(bot, message, response) {
+    const responseText = response.result.fulfillment.speech;
+    const intent = getIntentFromResponse(response);
+    const session = sessions.get(message.channel);
+
+    if (intent === 'say-company' && !session.hasSharedCompanies) {
+
+        const companies = response.result.parameters.company.map((companyName) => {
+            session.companies.add({ name: companyName });
+        });
+
+        const originalNumberOfCompanies = session.companies.size;
+
+        session.hasSharedCompanies = true;
+
+        setTimeout(function () {
+
+            const newNumberOfCompanies = session.companies.size;
+
+            if (originalNumberOfCompanies === newNumberOfCompanies) {
+                bot.reply(message, responseText, (err, resp) => {
+                    if (err) {
+                        console.error(err);
+                    }
+                });
+
+            }
+
+        }, FIVE_SECONDS);
+
+    }
+
+
+}
+
+function replyWithData(bot, message, responseData) {
+    console.info('reply with data');
+
+    try {
+        bot.reply(message, responseData.slack);
+    } catch (err) {
+        bot.reply(message, err.message);
+    }
+}
 
 //Create a server to prevent Heroku kills the bot
 const server = http.createServer((req, res) => res.end());
