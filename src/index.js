@@ -179,7 +179,7 @@ function sayCompanyIntentResponseHandler(session, message, response) {
         const newNumberOfCompanies = session.companies.size;
 
         if (originalNumberOfCompanies === newNumberOfCompanies) {
-            doReply(message, responseText);
+            sendMessage(message, responseText);
         }
 
     }, FIVE_SECONDS);
@@ -187,6 +187,11 @@ function sayCompanyIntentResponseHandler(session, message, response) {
 }
 
 function estimateBillResponseHandler(session, message, response) {
+    if (!session.hasSharedCompanies) {
+        console.info(`(${ESTIMATE_BILL_INTENT}): session needs to answer which companies they pay before estimating price`);
+        return;
+    }
+
     if (session.hasEstimatedBill) {
         console.info(`(${ESTIMATE_BILL_INTENT}): session has already handled this intent`);
         return;
@@ -197,11 +202,11 @@ function estimateBillResponseHandler(session, message, response) {
     const responseText = response.result.fulfillment.speech;
 
     setTimeout(function () {
-        doReply(message, responseText);
+        sendMessage(message, responseText);
     }, THREE_SECONDS);
 }
 
-function doReply(message, responseText) {
+function sendMessage(message, responseText) {
     bot.reply(message, responseText, (err, resp) => {
         if (err) {
             console.error(err);
