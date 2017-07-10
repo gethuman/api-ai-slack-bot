@@ -13,6 +13,8 @@
     "apiai": "^2.0.0",
     "botkit": "0.0.12",
     "html-entities": "^1.2.0",
-    "node-uuid": "^1.4.7"
+    "node-uuid": "^1.4.7",
+    "request": "^2.81.0",
+    "request-promise-native": "^1.0.4"
   }
 }
