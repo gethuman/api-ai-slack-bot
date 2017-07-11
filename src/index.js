@@ -232,6 +232,7 @@ function estimateBillResponseHandler(session, message, response) {
     const lowerSavingsEstimate = 20;
     const upperSavingsEstimate = lowerSavingsEstimate + (10 * session.companies.size);
     const responseText = `Based on all of your bills (especially with ${companyName}), I think we can save you around $${lowerSavingsEstimate}-$${upperSavingsEstimate}, or at least $${lowerSavingsEstimate * 12} a year. Can I explain how?`
+
     setTimeout(function () {
         inviteGetHumanRepsToRoom(message);
         doReply(message, responseText);
@@ -240,9 +241,9 @@ function estimateBillResponseHandler(session, message, response) {
 
 function chooseRandomCompanyName(companies) {
     const companyNames = [...companies.values()];
-    console.log('companies name: ', companyNames);
     const randomIndex = Math.floor(Math.random() * companyNames.length);
     const companyName = companyNames[randomIndex].name;
+
     return companyName.charAt(0).toUpperCase() + companyName.substring(1, companyName.length);
 }
 
@@ -252,6 +253,11 @@ function inviteGetHumanRepsToRoom(message) {
 
 function inviteUserGroupToChannel(groupId, channelId) {
     return getSlackUserIdsForUserGroup(groupId).then((userIds) => {
+        if (!userIds) {
+            console.error(`(groupId=${groupId}, channelId=${channelId}): no user ids returned for group`)
+            return;
+        }
+
         return inviteUserIdsToChannel(userIds, channelId);
     });
 }
