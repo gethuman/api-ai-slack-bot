@@ -97,9 +97,7 @@ controller.hears(['.*'], ['direct_message', 'direct_mention', 'mention', 'ambien
         requestText = requestText.replace("’", "'");
 
         let channel = message.channel;
-        let messageType = message.event;
         let botId = '<@' + bot.identity.id + '>';
-        let userId = message.user;
 
         console.log(`(message=${JSON.stringify(message)}): processing Slack message`);
         console.log(`(requestText=${requestText}): processing request text`);
@@ -114,37 +112,61 @@ controller.hears(['.*'], ['direct_message', 'direct_mention', 'mention', 'ambien
 
         const session = sessions.get(channel);
 
-        let request = apiAiService.textRequest(requestText,
-            {
-                sessionId: session.uuid,
-                contexts: [
-                    {
-                        name: "generic",
-                        parameters: {
-                            slack_user_id: userId,
-                            slack_channel: channel
-                        }
-                    }
-                ]
-            });
+        const visitorMessageFromChatlioWelcome = messageIsChatlioWelcome(requestText);
+        console.log('Session metadata: ', session);
 
-        request.on('response', (response) => {
-            console.log(response);
+        if (visitorMessageFromChatlioWelcome) {
+            askApiAi(message, visitorMessageFromChatlioWelcome)
+            return;
+        }
 
-            if (isDefined(response.result)) {
-                reply(bot, message, response);
+        askApiAi(message, requestText);
 
-            }
-        });
 
-        request.on('error', (error) => console.error(error));
-        request.end();
     } catch (err) {
         console.error(err);
     }
 });
 
-function reply(bot, message, response) {
+function messageIsChatlioWelcome(messageText) {
+    var getVisitorsMessagePattern = /Visitor: _(.*)_/;
+    var parsedMessage = getVisitorsMessagePattern.exec(messageText);
+
+    return parsedMessage && parsedMessage.length > 1 && parsedMessage[1].trim();
+}
+
+function askApiAi(slackMessageSource, requestText) {
+    let { userId, channel } = slackMessageSource;
+
+    const session = sessions.get(channel);
+
+    let request = apiAiService.textRequest(requestText,
+        {
+            sessionId: session.uuid,
+            contexts: [
+                {
+                    name: "generic",
+                    parameters: {
+                        slack_user_id: userId,
+                        slack_channel: channel
+                    }
+                }
+            ]
+        });
+
+    request.on('response', (response) => {
+        console.log(response);
+
+        if (isDefined(response.result)) {
+            reply(slackMessageSource, response);
+        }
+    });
+
+    request.on('error', (error) => console.error(error));
+    request.end();
+}
+
+function reply(message, response) {
     const intent = getIntentFromResponse(response);
     const session = sessions.get(message.channel);
 
