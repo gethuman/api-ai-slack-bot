@@ -231,7 +231,7 @@ function estimateBillResponseHandler(session, message, response) {
     const companyName = chooseRandomCompanyName(session.companies);
     const lowerSavingsEstimate = 20;
     const upperSavingsEstimate = lowerSavingsEstimate + (10 * session.companies.size);
-    const responseText = `Based on all of your bills (especially with ${companyName}), I think we can save you around $${lowerSavingsEstimate}-$${upperSavingsEstimate}, or at least $${lowerSavingsEstimate * 12} a year. Can I explain how?`
+    const responseText = `Based on all of your bills (especially with ${companyName}), I think we can save you around $${lowerSavingsEstimate}-$${upperSavingsEstimate} per month, or at least $${lowerSavingsEstimate * 12} a year. Can I explain how?`
 
     setTimeout(function () {
         inviteGetHumanRepsToRoom(message);
