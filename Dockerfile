@@ -1,4 +1,4 @@
-FROM node:5.9.0
+FROM node:7.10.0
 
 RUN mkdir -p /usr/gethuman/src
 WORKDIR /usr/gethuman
