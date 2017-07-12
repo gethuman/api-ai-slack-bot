@@ -229,11 +229,11 @@ function estimateBillResponseHandler(session, message, response) {
     session.hasEstimatedBill = true;
 
     const companyName = chooseRandomCompanyName(session.companies);
-    const responseText = `We offer a service that handles lowering bills like the ones you mentioned. I think you’d be a great fit considering what you pay ${companyName}. Can I tell you about it?`
 
     setTimeout(function () {
         inviteGetHumanRepsToRoom(message);
-        doReply(message, responseText);
+        doReply(message, 'Hmm, that seems a little high.');
+        doReply(message, 'Have you tried renegotiating that bill every month?');
     }, THREE_SECONDS);
 }
 
