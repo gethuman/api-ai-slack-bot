@@ -45,6 +45,7 @@ const controller = Botkit.slackbot({
 
 const FIVE_SECONDS = 5000;
 const THREE_SECONDS = 3000;
+const TWO_SECONDS = 2000;
 
 var bot = controller.spawn({
     token: slackBotKey
@@ -233,7 +234,10 @@ function estimateBillResponseHandler(session, message, response) {
     setTimeout(function () {
         inviteGetHumanRepsToRoom(message);
         doReply(message, 'Hmm, that seems a little high.');
-        doReply(message, 'Have you tried renegotiating that bill every month?');
+        setTimeout(() => {
+            doReply(message, 'Have you tried renegotiating that bill every month?');
+        }, TWO_SECONDS);
+
     }, THREE_SECONDS);
 }
 
